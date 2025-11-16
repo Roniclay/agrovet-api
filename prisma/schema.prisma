@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model audit_logs {
+  id          BigInt   @id @default(autoincrement())
+  tenant_id   String?  @db.Uuid
+  user_id     String?  @db.Uuid
+  ip_address  String?  @db.Inet
+  user_agent  String?
+  entity_name String
+  entity_id   String
+  action      String
+  before_data Json?
+  after_data  Json?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  tenants     tenants? @relation(fields: [tenant_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users       users?   @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([entity_name, entity_id], map: "idx_audit_logs_entity")
+  @@index([tenant_id], map: "idx_audit_logs_tenant")
+  @@index([user_id], map: "idx_audit_logs_user")
+}
+
+model permissions {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code            String            @unique
+  description     String?
+  module          String?
+  created_at      DateTime          @default(now()) @db.Timestamptz(6)
+  role_permission role_permission[]
+}
+
+model role_permission {
+  role_id       String      @db.Uuid
+  permission_id String      @db.Uuid
+  permissions   permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roles         roles       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([role_id, permission_id])
+}
+
+model roles {
+  id              String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id       String?           @db.Uuid
+  name            String
+  description     String?
+  is_system       Boolean           @default(false)
+  created_at      DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime          @default(now()) @db.Timestamptz(6)
+  role_permission role_permission[]
+  tenants         tenants?          @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user_roles      user_roles[]
+}
+
+model tenant_settings {
+  tenant_id                      String   @id @db.Uuid
+  timezone                       String   @default("America/Sao_Paulo")
+  storage_limit_mb               Int      @default(1024)
+  password_policy_min_length     Int      @default(8)
+  password_policy_require_upper  Boolean  @default(true)
+  password_policy_require_number Boolean  @default(true)
+  password_policy_require_symbol Boolean  @default(true)
+  data_retention_days            Int      @default(365)
+  notifications_email_enabled    Boolean  @default(true)
+  notifications_sms_enabled      Boolean  @default(false)
+  created_at                     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                     DateTime @default(now()) @db.Timestamptz(6)
+  tenants                        tenants  @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model tenants {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String
+  slug            String           @unique
+  document        String?
+  email_contact   String?
+  is_active       Boolean          @default(true)
+  created_at      DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime         @default(now()) @db.Timestamptz(6)
+  audit_logs      audit_logs[]
+  roles           roles[]
+  tenant_settings tenant_settings?
+  user_sessions   user_sessions[]
+  users           users[]
+
+  @@index([slug], map: "idx_tenants_slug")
+}
+
+model user_roles {
+  user_id String @db.Uuid
+  role_id String @db.Uuid
+  roles   roles  @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users   users  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([user_id, role_id])
+  @@index([role_id], map: "idx_user_roles_role")
+  @@index([user_id], map: "idx_user_roles_user")
+}
+
+model user_sessions {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id       String    @db.Uuid
+  tenant_id     String    @db.Uuid
+  refresh_token String
+  user_agent    String?
+  ip_address    String?   @db.Inet
+  expires_at    DateTime  @db.Timestamptz(6)
+  revoked_at    DateTime? @db.Timestamptz(6)
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+  tenants       tenants   @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users         users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([refresh_token], map: "idx_user_sessions_token")
+  @@index([user_id], map: "idx_user_sessions_user")
+}
+
+model users {
+  id                 String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id          String          @db.Uuid
+  name               String
+  email              String
+  username           String?
+  password_hash      String
+  is_active          Boolean         @default(true)
+  is_email_confirmed Boolean         @default(false)
+  login_attempts     Int             @default(0)
+  locked_until       DateTime?       @db.Timestamptz(6)
+  last_login_at      DateTime?       @db.Timestamptz(6)
+  created_at         DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime        @default(now()) @db.Timestamptz(6)
+  deleted_at         DateTime?       @db.Timestamptz(6)
+  audit_logs         audit_logs[]
+  user_roles         user_roles[]
+  user_sessions      user_sessions[]
+  tenants            tenants         @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([tenant_id], map: "idx_users_tenant")
+}
