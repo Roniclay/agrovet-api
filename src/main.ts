@@ -18,7 +18,7 @@ async function bootstrap() {
     .setTitle('Agrovet API')
     .setDescription('API para o sistema Agrovet')
     .setVersion('1.0')
-    //.addBearerAuth()
+    .addBearerAuth()
     .build();
   
   const document = SwaggerModule.createDocument(app, config);
