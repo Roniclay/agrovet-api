@@ -39,7 +39,15 @@ export class AuthService {
       include: {
         user_roles: {
           include: {
-            roles: true,
+            roles: {
+              include: {
+                role_permission: {
+                  include: {
+                    permissions: true,
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -60,18 +68,26 @@ export class AuthService {
     // 4) monta payload "limpo" para usar no token e no retorno
     const roles = user.user_roles.map((ur) => ur.roles.name); // ou roles.code, se você tiver
 
+    const permissions = Array.from(
+      new Set(
+        user.user_roles.flatMap((ur) =>
+          ur.roles.role_permission.map((rp) => rp.permissions.code),
+        ),
+      ),
+    );
     const { password_hash, ...sanitized } = user;
 
     return {
       user: sanitized,
       tenant,
       roles,
+      permissions,
     };
   }
 
   /** Login: cria sessão + gera JWT */
   async login(loginDto: LoginDto, userAgent?: string, ip?: string) {
-    const { user, tenant, roles } = await this.validateUser(loginDto);
+    const { user, tenant, roles, permissions } = await this.validateUser(loginDto);
 
     // 1) cria sessão (user_sessions)
     const session = await this.prisma.user_sessions.create({
@@ -91,6 +107,7 @@ export class AuthService {
       tenantId: tenant.id,
       sessionId: session.id,
       roles,
+      permissions,
     };
 
     const accessToken = await this.jwtService.signAsync(payload);
@@ -106,6 +123,7 @@ export class AuthService {
         username: user.username,
         tenantId: tenant.id,
         roles,
+        permissions,
       },
       tenant: {
         id: tenant.id,

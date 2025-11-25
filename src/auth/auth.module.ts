@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { JwtStrategy } from './jwt.strategy';
+import { RbacGuard } from './rbac.guard';
 
 @Module({
   imports: [
@@ -15,7 +16,8 @@ import { JwtStrategy } from './jwt.strategy';
       signOptions: { expiresIn: '15m' }, // access token
     }),
   ],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, RbacGuard,
+  ],
   controllers: [AuthController],
   exports: [AuthService],
 })
