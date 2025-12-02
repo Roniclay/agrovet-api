@@ -3,21 +3,21 @@ import { IsString, MinLength } from 'class-validator';
 
 export class LoginDto {
   @ApiProperty({
-    example: 'santa-luzia',
+    example: 'fazenda-roni',
     description: 'Slug do tenant (cliente) onde o usuário pertence',
   })
   @IsString()
   tenantSlug: string;
 
   @ApiProperty({
-    example: 'joao@santaluzia.com',
+    example: 'admin@fazenda.com',
     description: 'E-mail ou username do usuário',
   })
   @IsString()
   login: string;
 
   @ApiProperty({
-    example: 'SenhaForte1234!',
+    example: 'Admin123&',
     description: 'Senha do usuário',
   })
   @IsString()

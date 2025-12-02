@@ -8,6 +8,7 @@ import { TenantsModule } from './tenants/tenants.module';
 import { AuthModule } from './auth/auth.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { RolesModule } from './roles/roles.module';
+import { BootstrapModule } from './bootstrap/bootstrap.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { RolesModule } from './roles/roles.module';
     AuthModule,
     PermissionsModule,
     RolesModule,
+    BootstrapModule,
   ],
   controllers: [AppController],
   providers: [AppService],
