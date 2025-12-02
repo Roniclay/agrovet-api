@@ -12,15 +12,12 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
-  @ApiOperation({ summary: 'Login no sistema (multi-tenant)' })
+  @ApiOperation({ summary: 'Login com e-mail/username + senha + tenant' })
   async login(@Body() dto: LoginDto, @Req() req: Request) {
-    const userAgent = req.headers['user-agent'];
-    const ip =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
-      req.socket.remoteAddress ||
-      undefined;
-
-    return this.authService.login(dto, userAgent, ip);
+    return this.authService.login(dto, {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'] as string | undefined,
+    });
   }
 
   @Get('me')
