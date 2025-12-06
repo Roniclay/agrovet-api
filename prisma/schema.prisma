@@ -83,6 +83,8 @@ model tenants {
   is_active       Boolean          @default(true)
   created_at      DateTime         @default(now()) @db.Timestamptz(6)
   updated_at      DateTime         @default(now()) @db.Timestamptz(6)
+  animal_species  animal_species[]
+  animals         animals[]
   audit_logs      audit_logs[]
   roles           roles[]
   tenant_settings tenant_settings?
@@ -156,4 +158,127 @@ model password_reset_tokens {
   @@index([expires_at], map: "idx_password_reset_tokens_expires_at")
   @@index([used_at], map: "idx_password_reset_tokens_used_at")
   @@index([user_id], map: "idx_password_reset_tokens_user_id")
+}
+
+model animals {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id      String         @db.Uuid
+  species_id     String         @db.Uuid
+  breed_id       String?        @db.Uuid
+  size_id        String?        @db.Uuid
+  sex_id         String?        @db.Uuid
+  name           String?        @db.VarChar(150)
+  tag_code       String?        @db.VarChar(100)
+  status         String         @db.VarChar(50)
+  birth_date     DateTime?      @db.Timestamptz(6)
+  origin         String?        @db.VarChar(150)
+  lot_id         String?        @db.VarChar(100)
+  created_at     DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
+  deleted_at     DateTime?      @db.Timestamptz(6)
+  animal_breeds  animal_breeds? @relation(fields: [breed_id], references: [id], onUpdate: NoAction, map: "fk_animals_breed")
+  animal_sexes   animal_sexes?  @relation(fields: [sex_id], references: [id], onUpdate: NoAction, map: "fk_animals_sex")
+  animal_sizes   animal_sizes?  @relation(fields: [size_id], references: [id], onUpdate: NoAction, map: "fk_animals_size")
+  animal_species animal_species @relation(fields: [species_id], references: [id], onUpdate: NoAction, map: "fk_animals_species")
+  tenants        tenants        @relation(fields: [tenant_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_animals_tenant")
+
+  @@unique([tenant_id, tag_code], name: "uq_animals_tenant_tag", map: "uq_animals_tenant_tag")
+  @@index([deleted_at], map: "idx_animals_deleted_at")
+  @@index([lot_id], map: "idx_animals_lot_id")
+  @@index([status], map: "idx_animals_status")
+  @@index([tenant_id], map: "idx_animals_tenant_id")
+  @@index([breed_id], map: "idx_animals_breed")
+  @@index([sex_id], map: "idx_animals_sex")
+  @@index([size_id], map: "idx_animals_size")
+  @@index([species_id], map: "idx_animals_species")
+}
+
+model animal_breeds {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  species_id     String         @db.Uuid
+  size_id        String?        @db.Uuid
+  name           String         @db.VarChar(100)
+  is_active      Boolean        @default(true)
+  created_at     DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime       @default(now()) @db.Timestamptz(6)
+  animal_sizes   animal_sizes?  @relation(fields: [size_id], references: [id], onUpdate: NoAction, map: "fk_breed_size")
+  animal_species animal_species @relation(fields: [species_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "fk_breed_species")
+  animals        animals[]
+
+  @@unique([species_id, name], map: "uq_breed_species_name")
+  @@index([size_id], map: "idx_breeds_size")
+  @@index([species_id], map: "idx_breeds_species")
+}
+
+model animal_classes {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String           @unique @db.VarChar(30)
+  label          String           @db.VarChar(100)
+  description    String?          @db.VarChar(255)
+  is_active      Boolean          @default(true)
+  created_at     DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime         @default(now()) @db.Timestamptz(6)
+  animal_species animal_species[]
+}
+
+model animal_diets {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code           String           @unique @db.VarChar(30)
+  label          String           @db.VarChar(100)
+  description    String?          @db.VarChar(255)
+  is_active      Boolean          @default(true)
+  created_at     DateTime         @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime         @default(now()) @db.Timestamptz(6)
+  animal_species animal_species[]
+}
+
+model animal_sexes {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code       String    @unique @db.VarChar(30)
+  label      String    @db.VarChar(50)
+  is_active  Boolean   @default(true)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at DateTime  @default(now()) @db.Timestamptz(6)
+  animals    animals[]
+}
+
+model animal_sizes {
+  id            String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code          String          @unique @db.VarChar(30)
+  label         String          @db.VarChar(100)
+  description   String?         @db.VarChar(255)
+  is_active     Boolean         @default(true)
+  created_at    DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime        @default(now()) @db.Timestamptz(6)
+  animal_breeds animal_breeds[]
+  animals       animals[]
+}
+
+model animal_species {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenant_id       String?         @db.Uuid
+  common_name     String          @db.VarChar(100)
+  scientific_name String?         @db.VarChar(150)
+  class_id        String?         @db.Uuid
+  diet_id         String?         @db.Uuid
+  is_active       Boolean         @default(true)
+  created_at      DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime        @default(now()) @db.Timestamptz(6)
+  animal_breeds   animal_breeds[]
+  animal_classes  animal_classes? @relation(fields: [class_id], references: [id], onUpdate: NoAction, map: "fk_species_class")
+  animal_diets    animal_diets?   @relation(fields: [diet_id], references: [id], onUpdate: NoAction, map: "fk_species_diet")
+  tenants         tenants?        @relation(fields: [tenant_id], references: [id], onUpdate: NoAction, map: "fk_species_tenant")
+  animals         animals[]
+
+  @@unique([tenant_id, common_name], map: "uq_species_tenant_name")
+  @@index([class_id], map: "idx_species_class")
+  @@index([diet_id], map: "idx_species_diet")
+  @@index([tenant_id], map: "idx_species_tenant")
+}
+
+enum AnimalSize {
+  SMALL
+  LARGE
+
+  @@map("AnimalSize")
 }

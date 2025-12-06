@@ -10,6 +10,7 @@ import { PermissionsModule } from './permissions/permissions.module';
 import { RolesModule } from './roles/roles.module';
 import { BootstrapModule } from './bootstrap/bootstrap.module';
 import { MailModule } from './mail/mail.module';
+import { AnimalsModule } from './animals/animals.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { MailModule } from './mail/mail.module';
     RolesModule,
     BootstrapModule,
     MailModule,
+    AnimalsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
