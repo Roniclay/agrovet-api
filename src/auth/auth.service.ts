@@ -26,7 +26,6 @@ type LoginContext = {
 
 @Injectable()
 export class AuthService {
-  // ideal: ler isso de env ou de tenant_settings
   private readonly MAX_LOGIN_ATTEMPTS = 5;
   private readonly LOCK_TIME_MINUTES = 15;
   private readonly ACCESS_TOKEN_EXPIRES_IN = 900; // 15 min
@@ -59,7 +58,6 @@ export class AuthService {
       },
     });
 
-    // helper de log
     const logSecurityEvent = async (params: {
       action: string;
       userId?: string;
@@ -112,7 +110,7 @@ export class AuthService {
 
       throw new HttpException(
         'Conta bloqueada devido a múltiplas tentativas inválidas. Tente novamente mais tarde ou contate o administrador.',
-        HttpStatus.LOCKED, // 423
+        HttpStatus.LOCKED,
       );
     }
 
@@ -208,10 +206,11 @@ export class AuthService {
 
     const roleNames = roles.map((r) => r.name);
 
-    // 9) Criar JWT
+    // 9) Criar JWT (AGORA COM tenantType)
     const payload = {
       sub: user.id,
       tenantId: tenant.id,
+      tenantType: tenant.type, // 👈 NOVO
       roles: roleNames,
       permissions: permissionsCodes,
     };
@@ -232,7 +231,7 @@ export class AuthService {
       },
     });
 
-    // 11) Resposta compatível com o front
+    // 11) Resposta compatível com o front (AGORA COM type)
     return {
       access_token: accessToken,
       token_type: 'Bearer',
@@ -250,10 +249,12 @@ export class AuthService {
         id: tenant.id,
         name: tenant.name,
         slug: tenant.slug,
+        type: tenant.type, // 👈 NOVO
       },
     };
   }
 
+  // resto igual
   async requestPasswordReset(dto: RequestPasswordResetDto): Promise<void> {
     const { email } = dto;
     console.log('[FORGOT-PASSWORD] Recebido pedido para:', email);
@@ -267,7 +268,9 @@ export class AuthService {
     });
 
     if (!user) {
-      console.log('[FORGOT-PASSWORD] Usuário não encontrado ou inativo / e-mail não confirmado');
+      console.log(
+        '[FORGOT-PASSWORD] Usuário não encontrado ou inativo / e-mail não confirmado',
+      );
       return;
     }
 

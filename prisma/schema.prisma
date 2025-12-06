@@ -83,6 +83,7 @@ model tenants {
   is_active       Boolean          @default(true)
   created_at      DateTime         @default(now()) @db.Timestamptz(6)
   updated_at      DateTime         @default(now()) @db.Timestamptz(6)
+  type            String           @default("CLINIC") @db.VarChar(30)
   animal_species  animal_species[]
   animals         animals[]
   audit_logs      audit_logs[]

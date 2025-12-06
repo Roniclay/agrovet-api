@@ -1,5 +1,14 @@
-import { IsEmail, IsOptional, IsString, Matches, MinLength } from 'class-validator';
+// src/tenants/dto/create-tenant.dto.ts
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  Matches,
+  MinLength,
+  IsIn,
+} from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { TenantType } from '../tenant-type.enum';
 
 export class CreateTenantDto {
   @ApiProperty({
@@ -12,7 +21,8 @@ export class CreateTenantDto {
 
   @ApiProperty({
     example: 'fazenda-santa-luzia',
-    description: 'Identificador único do tenant. Apenas minúsculas, números e hífen.',
+    description:
+      'Identificador único do tenant. Apenas minúsculas, números e hífen.',
   })
   @IsString()
   @Matches(/^[a-z0-9-]+$/, {
@@ -36,4 +46,15 @@ export class CreateTenantDto {
   @IsOptional()
   @IsEmail()
   email_contact?: string;
+
+  @ApiPropertyOptional({
+    enum: TenantType,
+    enumName: 'TenantType',
+    example: TenantType.CLINIC,
+    description:
+      'Tipo do tenant. Define vocabulário e recursos padrão (CLINIC, FARM, PETSHOP, LAB, OTHER).',
+  })
+  @IsOptional()
+  @IsIn(Object.values(TenantType))
+  type?: TenantType;
 }

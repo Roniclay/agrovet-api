@@ -1,3 +1,4 @@
+// src/tenants/tenants.service.ts
 import {
   BadRequestException,
   Injectable,
@@ -6,15 +7,15 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdatePasswordPolicyDto } from './dto/update-password-policy.dto';
+import { TenantType } from './tenant-type.enum';
 
 @Injectable()
 export class TenantsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: CreateTenantDto) {
-    const { name, slug, document, email_contact } = data;
+  async create(dto: CreateTenantDto) {
+    const { name, slug, document, email_contact, type } = dto;
 
-    //Vamos verificar se existe outro tenant com o mesmo slug
     const existing = await this.prisma.tenants.findUnique({
       where: { slug },
     });
@@ -24,22 +25,26 @@ export class TenantsService {
     }
 
     const tenant = await this.prisma.$transaction(async (tx) => {
-      const createTenant = await tx.tenants.create({
+      const createdTenant = await tx.tenants.create({
         data: {
           name,
           slug,
           document,
           email_contact,
+          // se não vier type, assume CLINIC
+          type: type ?? TenantType.CLINIC,
         },
       });
 
       await tx.tenant_settings.create({
         data: {
-          tenant_id: createTenant.id,
+          tenant_id: createdTenant.id,
         },
       });
-      return createTenant;
+
+      return createdTenant;
     });
+
     return tenant;
   }
 
@@ -70,8 +75,10 @@ export class TenantsService {
     return settings;
   }
 
-  async updatePasswordPolicy(tenantId: string, data: UpdatePasswordPolicyDto) {
-    // Garante que o tenant existe
+  async updatePasswordPolicy(
+    tenantId: string,
+    data: UpdatePasswordPolicyDto,
+  ) {
     const tenant = await this.prisma.tenants.findUnique({
       where: { id: tenantId },
     });

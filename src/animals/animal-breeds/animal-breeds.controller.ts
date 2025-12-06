@@ -26,7 +26,6 @@ export class AnimalBreedsController {
   create(@Body() dto: CreateAnimalBreedDto) {
     return this.animalBreedsService.create(dto);
   }
-
   @Get()
   @ApiQuery({ name: 'species_id', required: false })
   findAll(@Query('species_id') speciesId?: string) {
