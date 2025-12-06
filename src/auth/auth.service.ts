@@ -6,12 +6,18 @@ import {
   HttpException,
   HttpStatus,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
-import { PrismaService } from '../../prisma/prisma.service'
+import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
+import { ConfigService } from '@nestjs/config';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { MailService } from 'src/mail/mail.service';
+import { randomBytes, randomUUID } from 'crypto';
 
 type LoginContext = {
   ip?: string;
@@ -28,6 +34,8 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   async login(dto: LoginDto, ctx: LoginContext) {
@@ -67,8 +75,8 @@ export class AuthService {
           entity_name: 'auth',
           entity_id: params.entityId,
           action: params.action,
-          before_data: params.details ? params.details.before ?? null : null,
-          after_data: params.details ? params.details.after ?? null : null,
+          before_data: params.details ? (params.details.before ?? null) : null,
+          after_data: params.details ? (params.details.after ?? null) : null,
         },
       });
     };
@@ -244,5 +252,113 @@ export class AuthService {
         slug: tenant.slug,
       },
     };
+  }
+
+  async requestPasswordReset(dto: RequestPasswordResetDto): Promise<void> {
+    const { email } = dto;
+    console.log('[FORGOT-PASSWORD] Recebido pedido para:', email);
+
+    const user = await this.prisma.users.findFirst({
+      where: {
+        email,
+        is_active: true,
+        is_email_confirmed: true,
+      },
+    });
+
+    if (!user) {
+      console.log('[FORGOT-PASSWORD] Usuário não encontrado ou inativo / e-mail não confirmado');
+      return;
+    }
+
+    const expiresMinutes =
+      this.configService.get<number>('AUTH_RESET_PASSWORD_EXPIRES_MINUTES') ??
+      30;
+
+    const rawToken = randomBytes(32).toString('hex');
+    const tokenHash = await bcrypt.hash(rawToken, 10);
+    const expiresAt = new Date(Date.now() + expiresMinutes * 60_000);
+
+    const resetToken = await this.prisma.password_reset_tokens.create({
+      data: {
+        id: randomUUID(),
+        user_id: user.id,
+        token_hash: tokenHash,
+        expires_at: expiresAt,
+      },
+    });
+
+    const frontendUrl =
+      this.configService.get<string>('APP_FRONTEND_URL') ??
+      'http://localhost:3001';
+    const fullToken = `${resetToken.id}.${rawToken}`;
+    const resetUrl = `${frontendUrl}/reset-password?token=${fullToken}`;
+
+    await this.mailService.sendPasswordReset({
+      to: user.email,
+      name: user.username ?? undefined,
+      resetUrl,
+    });
+
+    console.log('[FORGOT-PASSWORD] Chamou mailService.sendPasswordReset');
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<void> {
+    const { token, newPassword } = dto;
+
+    const parts = token.split('.');
+    if (parts.length !== 2) {
+      throw new BadRequestException('Token inválido');
+    }
+
+    const [tokenId, rawToken] = parts;
+
+    const storedToken = await this.prisma.password_reset_tokens.findUnique({
+      where: { id: tokenId },
+      include: { users: true },
+    });
+
+    if (!storedToken || !storedToken.users) {
+      throw new NotFoundException('Token inválido ou expirado');
+    }
+
+    const now = new Date();
+    if (storedToken.used_at || storedToken.expires_at <= now) {
+      throw new BadRequestException('Token inválido ou expirado');
+    }
+
+    const isValid = await bcrypt.compare(rawToken, storedToken.token_hash);
+    if (!isValid) {
+      throw new BadRequestException('Token inválido ou expirado');
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.$transaction([
+      this.prisma.users.update({
+        where: { id: storedToken.user_id },
+        data: {
+          password_hash: newHash,
+        },
+      }),
+
+      this.prisma.password_reset_tokens.update({
+        where: { id: storedToken.id },
+        data: { used_at: now },
+      }),
+
+      this.prisma.user_sessions.deleteMany({
+        where: { user_id: storedToken.user_id },
+      }),
+
+      this.prisma.password_reset_tokens.updateMany({
+        where: {
+          user_id: storedToken.user_id,
+          used_at: null,
+          id: { not: storedToken.id },
+        },
+        data: { used_at: now },
+      }),
+    ]);
   }
 }

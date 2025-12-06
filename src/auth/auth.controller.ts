@@ -5,6 +5,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { CurrentUser } from './current-user.decorator';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -16,7 +18,7 @@ export class AuthController {
   async login(@Body() dto: LoginDto, @Req() req: Request) {
     return this.authService.login(dto, {
       ip: req.ip,
-      userAgent: req.headers['user-agent'] as string | undefined,
+      userAgent: req.headers['user-agent'],
     });
   }
 
@@ -26,5 +28,20 @@ export class AuthController {
   @ApiOperation({ summary: 'Retornar dados do usuário autenticado' })
   async me(@CurrentUser() user: any) {
     return user; // aqui volta userId, tenantId, roles, sessionId
+  }
+
+  @Post('forgot-password')
+  async forgotPassword(@Body() dto: RequestPasswordResetDto) {
+    await this.authService.requestPasswordReset(dto);
+    return {
+      message:
+        'Se o e-mail estiver cadastrado, enviaremos um link de recuperação.',
+    };
+  }
+
+  @Post('reset-password')
+  async resetPassoword(@Body() dto: ResetPasswordDto) {
+    await this.authService.resetPassword(dto);
+    return { message: 'Senha redefinida com sucesso.' };
   }
 }
